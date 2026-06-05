@@ -1,0 +1,9 @@
+Copyright (c) 2026 Noah Miguel. All rights reserved.
+
+The source code and content of the "FM Transmitter Map" website are the exclusive property of Noah Miguel.
+
+Permission: You are granted a limited, non-exclusive, non-transferable license to view and use this website for personal, non-commercial purposes.
+
+Restrictions: You may not copy, modify, distribute, publish, or sell any part of this code or the data provided on this website without explicit written permission from the copyright holder.
+
+Disclaimer: This software is provided "as is," without warranty of any kind, express or implied. In no event shall the author be liable for any claim, damages, or other liability arising from the use of this website.
