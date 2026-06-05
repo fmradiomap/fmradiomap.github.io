@@ -1,15 +1,39 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Norway FM Transmitter Map</title>
+    <title>FM Transmitter Map</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
         body { margin: 0; padding: 0; }
         #map { height: 100vh; width: 100%; }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); display: flex;
+            justify-content: center; align-items: center; z-index: 1000;
+        }
+        .beta-popup {
+            background: white; padding: 20px; border-radius: 8px;
+            position: relative; max-width: 400px; text-align: center;
+        }
+        .close-btn {
+            position: absolute; top: 5px; right: 10px; cursor: pointer;
+            font-size: 20px; font-weight: bold;
+        }
     </style>
 </head>
 <body>
+
+    <div id="betaModal" class="modal-overlay">
+        <div class="beta-popup">
+            <span class="close-btn" onclick="document.getElementById('betaModal').style.display='none'">&times;</span>
+            <h2>Beta Notice</h2>
+            <p>This website is currently in <b>beta</b>. Many FM transmitters are currently missing, but i am working on adding them. Thank you for your patience! :)</p>
+            <p>Ver. 0.01</p>
+        </div>
+    </div>
 
     <div id="map"></div>
 
@@ -26,7 +50,6 @@
             high: L.icon({ iconUrl: 'icons/image_2.png', iconSize: [32, 32], iconAnchor: [16, 32], popupAnchor: [0, -32] })
         };
 
-        // MAST DATA: Add as many stations as you want inside the 'stations' array
         var masts = [
             {
                 lat: 59.304370, lng: 10.184678,
@@ -34,7 +57,6 @@
                     { name: "HIT FM", freq: "89.5", erp: 5, ps: " HIT FM ", pi: "F095" },
                 ]
             },
-           
             {
                 lat: 59.310000, lng: 10.160000,
                 stations: [
@@ -44,11 +66,9 @@
         ];
 
         masts.forEach(function(m) {
-            // Find the highest power station to determine icon color
             var maxErp = Math.max(...m.stations.map(s => s.erp));
             var icon = (maxErp >= 5000) ? icons.high : (maxErp >= 500) ? icons.mid : icons.low;
 
-            // Build popup content for all stations at this mast
             var stationList = m.stations.map(s => `
                 <div style="border-bottom: 1px solid #ccc; padding: 5px 0;">
                     <b>${s.name}</b> (${s.freq} MHz)<br>
