@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Norway FM Transmitter Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        body { margin: 0; padding: 0; }
+        #map { height: 100vh; width: 100%; }
+    </style>
+</head>
+<body>
+
+    <div id="map"></div>
+
+    <script>
+        var map = L.map('map').setView([59.13, 10.22], 12);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        var icons = {
+            low: L.icon({ iconUrl: 'icons/image_0.png', iconSize: [32, 32], iconAnchor: [16, 32], popupAnchor: [0, -32] }),
+            mid: L.icon({ iconUrl: 'icons/image_1.png', iconSize: [32, 32], iconAnchor: [16, 32], popupAnchor: [0, -32] }),
+            high: L.icon({ iconUrl: 'icons/image_2.png', iconSize: [32, 32], iconAnchor: [16, 32], popupAnchor: [0, -32] })
+        };
+
+        // MAST DATA: Add as many stations as you want inside the 'stations' array
+        var masts = [
+            {
+                lat: 59.304370, lng: 10.184678,
+                stations: [
+                    { name: "HIT FM", freq: "89.5", erp: 5, ps: " HIT FM ", pi: "F095" },
+                ]
+            },
+           
+            {
+                lat: 59.310000, lng: 10.160000,
+                stations: [
+                    { name: "Radio Tønsberg", freq: "101.0", erp: 100, ps: "TONSBERG", pi: "F35B" }
+                ]
+            },
+        ];
+
+        masts.forEach(function(m) {
+            // Find the highest power station to determine icon color
+            var maxErp = Math.max(...m.stations.map(s => s.erp));
+            var icon = (maxErp >= 5000) ? icons.high : (maxErp >= 500) ? icons.mid : icons.low;
+
+            // Build popup content for all stations at this mast
+            var stationList = m.stations.map(s => `
+                <div style="border-bottom: 1px solid #ccc; padding: 5px 0;">
+                    <b>${s.name}</b> (${s.freq} MHz)<br>
+                    ERP: ${s.erp}W | <b>PS:</b> ${s.ps} | <b>PI:</b> ${s.pi}
+                </div>
+            `).join('');
+
+            L.marker([m.lat, m.lng], {icon: icon})
+                .addTo(map)
+                .bindPopup(`<h3>Mast Site</h3>${stationList}`);
+        });
+    </script>
+</body>
+</html>
