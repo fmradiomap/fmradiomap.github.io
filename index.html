@@ -1,11 +1,12 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FM Transmitter Map</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
-        body { margin: 0; padding: 0; }
+        body { margin: 0; padding: 0; font-family: sans-serif; }
         #map { height: 100vh; width: 100%; }
 
         /* Modal Styles */
@@ -30,41 +31,46 @@
         <div class="beta-popup">
             <span class="close-btn" onclick="document.getElementById('betaModal').style.display='none'">&times;</span>
             <h2>Beta Notice</h2>
-            <p>This website is currently in <b>beta</b>. Many FM transmitters are currently missing, but i am working on adding them. Thank you for your patience! :)</p>
+            <p>This website is in <b>beta</b>. I am adding new transmitters regularly!</p>
             <p>Ver. 0.01</p>
+            <p>Updates so far: Fix transmitter icons being too big</p>
+            <p>Another important notice: I will be working on Norwegian FM transmitter first, then moving on to other countries.</p>
         </div>
     </div>
 
     <div id="map"></div>
 
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
+        // Initialize Map
         var map = L.map('map').setView([59.13, 10.22], 12);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors'
         }).addTo(map);
 
+        // Defined smaller icons
+        var iconOptions = { iconSize: [20, 20], iconAnchor: [10, 20], popupAnchor: [0, -20] };
+        
         var icons = {
-            low: L.icon({ iconUrl: 'icons/image_0.png', iconSize: [32, 32], iconAnchor: [16, 32], popupAnchor: [0, -32] }),
-            mid: L.icon({ iconUrl: 'icons/image_1.png', iconSize: [32, 32], iconAnchor: [16, 32], popupAnchor: [0, -32] }),
-            high: L.icon({ iconUrl: 'icons/image_2.png', iconSize: [32, 32], iconAnchor: [16, 32], popupAnchor: [0, -32] })
+            low: L.icon({ ...iconOptions, iconUrl: 'icons/image_0.png' }),
+            mid: L.icon({ ...iconOptions, iconUrl: 'icons/image_1.png' }),
+            high: L.icon({ ...iconOptions, iconUrl: 'icons/image_2.png' })
         };
 
+        // Transmitter Data
         var masts = [
             {
                 lat: 59.304370, lng: 10.184678,
-                stations: [
-                    { name: "HIT FM", freq: "89.5", erp: 5, ps: " HIT FM ", pi: "F095" },
-                ]
+                stations: [{ name: "HIT FM", freq: "89.5", erp: 5, ps: " HIT FM ", pi: "F095" }]
             },
             {
                 lat: 59.310000, lng: 10.160000,
-                stations: [
-                    { name: "Radio Tønsberg", freq: "101.0", erp: 100, ps: "TONSBERG", pi: "F35B" }
-                ]
-            },
+                stations: [{ name: "Radio Tønsberg", freq: "101.0", erp: 100, ps: "TONSBERG", pi: "F35B" }]
+            }
         ];
 
+        // Add markers to map
         masts.forEach(function(m) {
             var maxErp = Math.max(...m.stations.map(s => s.erp));
             var icon = (maxErp >= 5000) ? icons.high : (maxErp >= 500) ? icons.mid : icons.low;
