@@ -9,7 +9,7 @@
         body { margin: 0; padding: 0; font-family: sans-serif; }
         #map { height: 100vh; width: 100%; }
 
-        /* Modal Styles */
+        
         .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.7); display: flex;
@@ -35,6 +35,7 @@
             <p>Ver. 0.01</p>
             <p>Updates so far: Fix transmitter icons being too big</p>
             <p>Another important notice: I will be working on Norwegian FM transmitter first, then moving on to other countries.</p>
+            <p>&copy; 2026 Noah Miguel. All rights reserved.</p>
         </div>
     </div>
 
@@ -42,14 +43,14 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        // Initialize Map
+        
         var map = L.map('map').setView([59.13, 10.22], 12);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors'
         }).addTo(map);
 
-        // Defined smaller icons
+        
         var iconOptions = { iconSize: [20, 20], iconAnchor: [10, 20], popupAnchor: [0, -20] };
         
         var icons = {
@@ -58,7 +59,7 @@
             high: L.icon({ ...iconOptions, iconUrl: 'icons/image_2.png' })
         };
 
-        // Transmitter Data
+        
         var masts = [
             {
                 lat: 59.304370, lng: 10.184678,
@@ -70,7 +71,7 @@
             }
         ];
 
-        // Add markers to map
+        
         masts.forEach(function(m) {
             var maxErp = Math.max(...m.stations.map(s => s.erp));
             var icon = (maxErp >= 5000) ? icons.high : (maxErp >= 500) ? icons.mid : icons.low;
