@@ -5,31 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FM Transmitter Map</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <style>
-        body { margin: 0; padding: 0; font-family: sans-serif; }
-        #map { height: 100vh; width: 100%; }
-
-        .leaflet-marker-icon {
-            max-width: none !important;
-            max-height: none !important;
-            will-change: transform;
-            transition: transform 0.2s ease-out;
-        }
-
-        .modal-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.7); display: flex;
-            justify-content: center; align-items: center; z-index: 1000;
-        }
-        .beta-popup {
-            background: white; padding: 20px; border-radius: 8px;
-            position: relative; max-width: 400px; text-align: center;
-        }
-        .close-btn {
-            position: absolute; top: 5px; right: 10px; cursor: pointer;
-            font-size: 20px; font-weight: bold;
-        }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
@@ -37,12 +13,18 @@
         <div class="beta-popup">
             <span class="close-btn" onclick="document.getElementById('betaModal').style.display='none'">&times;</span>
             <h2>Beta Notice</h2>
-            <p>This website is in <b>beta</b>. I am adding new transmitters regularly!</p>
+            <p>This website is in beta. I am adding new transmitters regularly!</p>
             <p>Ver. 0.01</p>
-            <p>Updates so far: Fix transmitter icons being too big, improve zooming in and out, add more detail to the transmitter icons</p>
+            <p>Updates so far: Fix transmitter icons being too big, improve zooming in and out, add more detail to the transmitter icons, add a search for transmitter thing, add range estimate (Might not be very accurate yet!)</p>
             <p>Another important notice: I will be working on Norwegian FM transmitters first, then moving on to other countries.</p>
             <p>&copy; 2026 Noah Miguel. All rights reserved.</p>
         </div>
+    </div>
+
+    <div class="search-control">
+        <input type="text" id="inFreq" placeholder="Freq (MHz)">
+        <input type="text" id="inPi" placeholder="PI Code">
+        <button onclick="filterStations()">OK</button>
     </div>
 
     <div id="map"></div>
@@ -62,34 +44,77 @@
         };
 
         var masts = [
-            {
-                lat: 59.304370, lng: 10.184678,
-                stations: [{ name: "RSTV Dance", freq: "89.5", erp: 0.00000005, ps: "RSTVDnce", pi: "2210" }]
-            },
-            {
-                lat: 59.310000, lng: 10.160000,
-                stations: [{ name: "Radio Tønsberg", freq: "101.0", erp: 100, ps: "TONSBERG", pi: "F35B" }]
-            }
+            { lat: 59.304370, lng: 10.184678, height: 100, stations: [
+                { name: "HIT FM", freq: "89.5", erp: 5e-8, ps: " HIT FM ", pi: "F095" },
+                { name: "NRK P3", freq: "92.0", erp: 5e-8, ps: "STAT2", pi: "F096" }
+            ]},
+            { lat: 59.310000, lng: 10.160000, height: 30, stations: [
+                { name: "Radio Tønsberg", freq: "101.0", erp: 100, ps: "TONSBERG", pi: "F35B" }
+            ]}
         ];
+
+        var markers = [];
+
+        function calculateRange(erp, height) {
+            let baseRange = 3.5 * Math.sqrt(height);
+            let powerFactor = Math.pow(erp / 1000, 0.2); 
+            return (baseRange * powerFactor);
+        }
 
         masts.forEach(function(m) {
             var maxErp = Math.max(...m.stations.map(s => s.erp));
             var icon = (maxErp >= 5000) ? icons.high : (maxErp >= 500) ? icons.mid : icons.low;
+            var range = calculateRange(maxErp, m.height);
+
+            var circle = L.circle([m.lat, m.lng], {
+                radius: range * 1000,
+                color: '#3388ff',
+                fillOpacity: 0.1,
+                weight: 1
+            }).addTo(map);
+
+            var marker = L.marker([m.lat, m.lng], { icon: icon }).addTo(map);
+            
+            marker.stations = m.stations;
+            marker.circle = circle; 
+            markers.push(marker);
 
             var stationList = m.stations.map(s => `
                 <div style="border-bottom: 1px solid #ccc; padding: 5px 0;">
                     <b>${s.name}</b> (${s.freq} MHz)<br>
-                    ERP: ${s.erp}W | <b>PS:</b> ${s.ps} | <b>PI:</b> ${s.pi}
+                    ERP: ${s.erp}W<br>
+                    <b>PS:</b> ${s.ps} | <b>PI:</b> ${s.pi}<br>
+                    <small style="color: #555;">Est. Range: ~${range.toFixed(1)} km</small>
                 </div>
             `).join('');
 
-            L.marker([m.lat, m.lng], {
-                icon: icon,
-                riseOnHover: false 
-            })
-            .addTo(map)
-            .bindPopup(`<h3>FM Transmitter</h3>${stationList}`);
+            marker.bindPopup(`<h3>FM Transmitter</h3>${stationList}`);
         });
+
+        function filterStations() {
+            var f = document.getElementById('inFreq').value.trim();
+            var p = document.getElementById('inPi').value.trim().toUpperCase();
+
+            if (f !== "" && !f.includes('.')) {
+                f = f + ".0";
+            }
+
+            markers.forEach(m => {
+                var match = m.stations.some(s => {
+                    var freqMatch = (f === "" || s.freq === f);
+                    var piMatch = (p === "" || s.pi.toUpperCase() === p);
+                    return freqMatch && piMatch;
+                });
+                
+                if (match) {
+                    m.addTo(map);
+                    m.circle.addTo(map);
+                } else {
+                    map.removeLayer(m);
+                    map.removeLayer(m.circle);
+                }
+            });
+        }
     </script>
 </body>
 </html>
