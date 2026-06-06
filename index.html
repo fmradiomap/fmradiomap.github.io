@@ -5,16 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FM Transmitter Map</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <style>
-        body { margin: 0; padding: 0; font-family: sans-serif; }
-        #map { height: 100vh; width: 100%; }
-        .search-control { position: absolute; top: 10px; left: 50px; z-index: 1000; background: white; padding: 10px; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.3); }
-        .search-control input { width: 80px; margin: 2px; }
-        .leaflet-marker-icon { max-width: none !important; max-height: none !important; will-change: transform; transition: transform 0.2s ease-out; }
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; justify-content: center; align-items: center; z-index: 2000; }
-        .beta-popup { background: white; padding: 20px; border-radius: 8px; position: relative; max-width: 400px; text-align: center; }
-        .close-btn { position: absolute; top: 5px; right: 10px; cursor: pointer; font-size: 20px; font-weight: bold; }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
@@ -35,6 +26,7 @@
         <input type="text" id="inPi" placeholder="PI Code">
         <button onclick="filterStations()">OK</button>
         <button onclick="resetMap()">Reset</button>
+        <button onclick="locateUser()">Set RX</button>
     </div>
 
     <div id="map"></div>
@@ -94,6 +86,25 @@
             marker.circle.setRadius(range * 1000);
         }
 
+        function locateUser() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(function(pos) {
+                    var latlng = [pos.coords.latitude, pos.coords.longitude];
+                    updateUserMarker(latlng);
+                    map.setView(latlng, 10);
+                });
+            } else {
+                alert("Geolocation not supported.");
+            }
+        }
+
+        function updateUserMarker(latlng) {
+            if (userMarker) map.removeLayer(userMarker);
+            markers.forEach(m => { if(m.myLine) { map.removeLayer(m.myLine); m.myLine = null; }});
+            userMarker = L.marker(latlng).addTo(map);
+            localStorage.setItem('userAntennaPos', JSON.stringify(latlng));
+        }
+
         window.filterByName = function(name) {
             markers.forEach(m => {
                 var matches = m.stations.filter(s => s.name === name);
@@ -151,17 +162,10 @@
             marker.bindPopup(`<h3>FM Transmitter</h3><div class="dist-info"></div>` + stationList);
         });
 
-        map.on('contextmenu', function(e) {
-            if (userMarker) map.removeLayer(userMarker);
-            markers.forEach(m => { if(m.myLine) { map.removeLayer(m.myLine); m.myLine = null; }});
-            userMarker = L.marker(e.latlng).addTo(map);
-            localStorage.setItem('userAntennaPos', JSON.stringify(e.latlng));
-        });
+        map.on('contextmenu', function(e) { updateUserMarker(e.latlng); });
 
         var saved = localStorage.getItem('userAntennaPos');
-        if (saved) {
-            userMarker = L.marker(JSON.parse(saved)).addTo(map);
-        }
+        if (saved) { userMarker = L.marker(JSON.parse(saved)).addTo(map); }
 
         function filterStations() {
             var f = document.getElementById('inFreq').value.trim();
