@@ -101,7 +101,14 @@
         function updateUserMarker(latlng) {
             if (userMarker) map.removeLayer(userMarker);
             markers.forEach(m => { if(m.myLine) { map.removeLayer(m.myLine); m.myLine = null; }});
-            userMarker = L.marker(latlng).addTo(map);
+            
+            var smallIcon = L.icon({
+                iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+                iconSize: [15, 25],
+                iconAnchor: [7, 25]
+            });
+            
+            userMarker = L.marker(latlng, {icon: smallIcon}).addTo(map);
             localStorage.setItem('userAntennaPos', JSON.stringify(latlng));
         }
 
@@ -165,7 +172,15 @@
         map.on('contextmenu', function(e) { updateUserMarker(e.latlng); });
 
         var saved = localStorage.getItem('userAntennaPos');
-        if (saved) { userMarker = L.marker(JSON.parse(saved)).addTo(map); }
+        if (saved) { 
+            var latlng = JSON.parse(saved);
+            var smallIcon = L.icon({
+                iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+                iconSize: [15, 25],
+                iconAnchor: [7, 25]
+            });
+            userMarker = L.marker(latlng, {icon: smallIcon}).addTo(map); 
+        }
 
         function filterStations() {
             var f = document.getElementById('inFreq').value.trim();
