@@ -5,7 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FM Transmitter Map</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css">
+    <style>
+        body { margin: 0; padding: 0; font-family: sans-serif; }
+        #map { height: 100vh; width: 100%; }
+        .search-control { position: absolute; top: 10px; left: 50px; z-index: 1000; background: white; padding: 10px; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.3); }
+        .search-control input { width: 80px; margin: 2px; }
+        .leaflet-marker-icon { max-width: none !important; max-height: none !important; will-change: transform; transition: transform 0.2s ease-out; }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; justify-content: center; align-items: center; z-index: 2000; }
+        .beta-popup { background: white; padding: 20px; border-radius: 8px; position: relative; max-width: 400px; text-align: center; }
+        .close-btn { position: absolute; top: 5px; right: 10px; cursor: pointer; font-size: 20px; font-weight: bold; }
+    </style>
 </head>
 <body>
 
@@ -14,10 +23,10 @@
             <span class="close-btn" onclick="document.getElementById('betaModal').style.display='none'">&times;</span>
             <h2>Beta Notice</h2>
             <p>This website is in beta. I am adding new transmitters regularly!</p>
-            <p>Ver. 0.01</p>
-            <p>Updates so far: Fix transmitter icons being too big, improve zooming in and out, add more detail to the transmitter icons, add a search for transmitter thing, add range estimate (Might not be very accurate yet!)</p>
-            <p>Another important notice: I will be working on Norwegian FM transmitters first, then moving on to other countries.</p>
-            <p>&copy; 2026 Noah Miguel. All rights reserved.</p>
+            <p>Ver. 0.02</p>
+            <p>Updates so far: Fix transmitter icons being too big, improve zooming in and out, add more detail to the transmitter icons, add a search for transmitter thing, add range estimate (Might not be very accurate yet!), add distance and able to right click the transmitter</p>
+            <p>Note! Right click your QTH on the map to place a marker, then search either the frequency or PI code of transmitter to see distance!</p>
+            <p>© 2026 Noah Miguel. All rights reserved.</p>
         </div>
     </div>
 
@@ -25,13 +34,14 @@
         <input type="text" id="inFreq" placeholder="Freq (MHz)">
         <input type="text" id="inPi" placeholder="PI Code">
         <button onclick="filterStations()">OK</button>
+        <button onclick="resetMap()">Reset</button>
     </div>
 
     <div id="map"></div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        var map = L.map('map').setView([59.13, 10.22], 12);
+        var map = L.map('map').setView([59.13, 10.22], 7);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors'
@@ -39,80 +49,142 @@
 
         var icons = {
             low: L.icon({ iconUrl: 'icons/image_0.png', iconSize: [20, 20], iconAnchor: [10, 20], popupAnchor: [0, -20] }),
-            mid: L.icon({ iconUrl: 'icons/image_1.png', iconSize: [30, 30], iconAnchor: [15, 30], popupAnchor: [0, -30] }),
-            high: L.icon({ iconUrl: 'icons/image_2.png', iconSize: [40, 40], iconAnchor: [20, 40], popupAnchor: [0, -40] })
+            mid: L.icon({ iconUrl: 'icons/image_1.png', iconSize: [25, 25], iconAnchor: [12.5, 25], popupAnchor: [0, -25] }),
+            high: L.icon({ iconUrl: 'icons/image_2.png', iconSize: [30, 30], iconAnchor: [15, 30], popupAnchor: [0, -30] })
         };
 
         var masts = [
-            { lat: 59.304370, lng: 10.184678, height: 100, stations: [
+            { lat: 59.304370, lng: 10.184678, height: 40, stations: [
                 { name: "HIT FM", freq: "89.5", erp: 5e-8, ps: " HIT FM ", pi: "F095" },
                 { name: "NRK P3", freq: "92.0", erp: 5e-8, ps: "STAT2", pi: "F096" }
             ]},
-            { lat: 59.310000, lng: 10.160000, height: 30, stations: [
+            { lat: 60.130000, lng: -1.100000, height: 82, stations: [
+                { name: "SIBC", freq: "96.2", erp: 4000, ps: "SIBC", pi: "C486" },
+                { name: "BBC R2", freq: "88.3", erp: 50000, ps: "BBC R2", pi: "C202" },
+                { name: "BBC R3", freq: "90.5", erp: 50000, ps: "BBC R3", pi: "C203" },
+                { name: "BBC R4", freq: "94.9", erp: 50000, ps: "BBC R4", pi: "C204" },
+                { name: "BBC R1", freq: "97.9", erp: 50000, ps: "BBC R1", pi: "C201" }
+            ]},
+            { lat: 59.310000, lng: 10.160000, height: 40, stations: [
                 { name: "Radio Tønsberg", freq: "101.0", erp: 100, ps: "TONSBERG", pi: "F35B" }
             ]}
         ];
 
         var markers = [];
+        var userMarker = null;
+
+        function getDist(latlng1, latlng2) {
+            return (map.distance(latlng1, latlng2) / 1000).toFixed(1) + " km";
+        }
 
         function calculateRange(erp, height) {
             let baseRange = 3.5 * Math.sqrt(height);
-            let powerFactor = Math.pow(erp / 1000, 0.2); 
+            let powerFactor = Math.pow(erp / 1000, 0.2);
             return (baseRange * powerFactor);
         }
 
+        function getBestStation(stations) {
+            return stations.reduce((prev, curr) => (prev.erp > curr.erp) ? prev : curr);
+        }
+
+        function applyMarkerState(marker, station) {
+            var range = calculateRange(station.erp, marker.mastHeight);
+            var icon = (station.erp >= 5000) ? icons.high : (station.erp >= 500) ? icons.mid : icons.low;
+            marker.setIcon(icon);
+            marker.circle.setRadius(range * 1000);
+        }
+
+        window.filterByName = function(name) {
+            markers.forEach(m => {
+                var matches = m.stations.filter(s => s.name === name);
+                if (matches.length > 0) {
+                    applyMarkerState(m, getBestStation(matches));
+                    m.addTo(map); m.circle.addTo(map);
+                } else {
+                    map.removeLayer(m); map.removeLayer(m.circle);
+                    if(m.myLine) { map.removeLayer(m.myLine); m.myLine = null; }
+                }
+            });
+        };
+
         masts.forEach(function(m) {
-            var maxErp = Math.max(...m.stations.map(s => s.erp));
-            var icon = (maxErp >= 5000) ? icons.high : (maxErp >= 500) ? icons.mid : icons.low;
-            var range = calculateRange(maxErp, m.height);
-
-            var circle = L.circle([m.lat, m.lng], {
-                radius: range * 1000,
-                color: '#3388ff',
-                fillOpacity: 0.1,
-                weight: 1
-            }).addTo(map);
-
-            var marker = L.marker([m.lat, m.lng], { icon: icon }).addTo(map);
-            
+            var best = getBestStation(m.stations);
+            var marker = L.marker([m.lat, m.lng]).addTo(map);
             marker.stations = m.stations;
-            marker.circle = circle; 
+            marker.mastHeight = m.height;
+            marker.circle = L.circle([m.lat, m.lng], { color: '#3388ff', fillOpacity: 0.1, weight: 1 }).addTo(map);
+            marker.myLine = null;
+            
+            applyMarkerState(marker, best);
             markers.push(marker);
+            
+            marker.on('contextmenu', function() {
+                if (!userMarker) return;
+                if (marker.myLine) {
+                    map.removeLayer(marker.myLine);
+                    marker.myLine = null;
+                } else {
+                    marker.myLine = L.polyline([userMarker.getLatLng(), marker.getLatLng()], {color: 'red', dashArray: '5, 10'}).addTo(map);
+                }
+            });
 
+            marker.on('mouseover', function() {
+                var d = userMarker ? getDist(userMarker.getLatLng(), marker.getLatLng()) : "Place RX";
+                marker.bindTooltip("Dist: " + d).openTooltip();
+            });
+
+            marker.on('popupopen', function() {
+                if (userMarker) {
+                    var d = getDist(userMarker.getLatLng(), marker.getLatLng());
+                    var container = marker.getPopup().getElement();
+                    var distDiv = container.querySelector('.dist-info');
+                    if (distDiv) distDiv.innerHTML = "<b>Distance:</b> " + d;
+                }
+            });
+            
             var stationList = m.stations.map(s => `
-                <div style="border-bottom: 1px solid #ccc; padding: 5px 0;">
+                <div style="border-bottom: 1px solid #ccc; padding: 5px 0; cursor: pointer;" onclick="filterByName('${s.name}')">
                     <b>${s.name}</b> (${s.freq} MHz)<br>
-                    ERP: ${s.erp}W<br>
-                    <b>PS:</b> ${s.ps} | <b>PI:</b> ${s.pi}<br>
-                    <small style="color: #555;">Est. Range: ~${range.toFixed(1)} km</small>
+                    ERP: ${s.erp}W | <b>PS:</b> ${s.ps} | <b>PI:</b> ${s.pi}
                 </div>
             `).join('');
-
-            marker.bindPopup(`<h3>FM Transmitter</h3>${stationList}`);
+            marker.bindPopup(`<h3>FM Transmitter</h3><div class="dist-info"></div>` + stationList);
         });
+
+        map.on('contextmenu', function(e) {
+            if (userMarker) map.removeLayer(userMarker);
+            markers.forEach(m => { if(m.myLine) { map.removeLayer(m.myLine); m.myLine = null; }});
+            userMarker = L.marker(e.latlng).addTo(map);
+            localStorage.setItem('userAntennaPos', JSON.stringify(e.latlng));
+        });
+
+        var saved = localStorage.getItem('userAntennaPos');
+        if (saved) {
+            userMarker = L.marker(JSON.parse(saved)).addTo(map);
+        }
 
         function filterStations() {
             var f = document.getElementById('inFreq').value.trim();
             var p = document.getElementById('inPi').value.trim().toUpperCase();
-
-            if (f !== "" && !f.includes('.')) {
-                f = f + ".0";
-            }
-
+            if (f !== "" && !f.includes('.')) f += ".0";
             markers.forEach(m => {
-                var match = m.stations.some(s => {
-                    var freqMatch = (f === "" || s.freq === f);
-                    var piMatch = (p === "" || s.pi.toUpperCase() === p);
-                    return freqMatch && piMatch;
-                });
-                
-                if (match) {
-                    m.addTo(map);
-                    m.circle.addTo(map);
+                var matches = m.stations.filter(s => (f === "" || s.freq === f) && (p === "" || s.pi.toUpperCase() === p));
+                if (matches.length > 0) {
+                    applyMarkerState(m, getBestStation(matches));
+                    m.addTo(map); m.circle.addTo(map);
                 } else {
-                    map.removeLayer(m);
-                    map.removeLayer(m.circle);
+                    map.removeLayer(m); map.removeLayer(m.circle);
+                    if(m.myLine) { map.removeLayer(m.myLine); m.myLine = null; }
                 }
+            });
+        }
+
+        function resetMap() {
+            document.getElementById('inFreq').value = "";
+            document.getElementById('inPi').value = "";
+            markers.forEach(m => {
+                applyMarkerState(m, getBestStation(m.stations));
+                m.addTo(map); m.circle.addTo(map);
             });
         }
     </script>
